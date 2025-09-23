@@ -2308,6 +2308,18 @@ do
     Library:MakeDraggable(KeybindOuter);
 end;
 
+
+
+
+local Glow = Instance.new("UIStroke")
+Glow.Color = Color3.fromRGB(0, 255, 255) -- glow color
+Glow.Thickness = 2                        -- outline thickness
+Glow.Transparency = 0.5                   -- 0 = solid, 1 = invisible
+Glow.ApplyStrokeMode = Enum.ApplyStrokeMode.Outside
+Glow.Parent = Library.WatermarkText
+Library.WatermarkGlow = Glow
+
+
 function Library:SetWatermarkVisibility(Bool)
     Library.Watermark.Visible = Bool;
 end;
