@@ -168,37 +168,31 @@ local function GetPlayers(ExcludeLocalPlayer, ReturnInstances)
     return FixedPlayerList;
 end;
 
--- === Fixed / cleaned up version of provided library snippet ===
-
--- Assumes these globals exist earlier in the file:
--- local Library, Teams, Mouse, InputService, RenderStepped, Task, RunService, TextService
--- (I didn't add or remove those globals — I only fixed code that would error out.)
-
 local function GetTeams(ReturnInstances)
-    local TeamList = Teams:GetTeams()
+    local TeamList = Teams:GetTeams();
 
     table.sort(TeamList, function(Team1, Team2)
-        return Team1.Name:lower() < Team2.Name:lower()
+        return Team1.Name:lower() < Team2.Name:lower();
     end)
 
     if ReturnInstances == true then
-        return TeamList
-    end
+        return TeamList;
+    end;
 
-    local FixedTeamList = {}
+    local FixedTeamList = {};
     for _, team in next, TeamList do
-        FixedTeamList[#FixedTeamList + 1] = team.Name
-    end
+        FixedTeamList[#FixedTeamList + 1] = team.Name;
+    end;
 
-    return FixedTeamList
-end
+    return FixedTeamList;
+end;
 
-function Library:SetDPIScale(value)
-    assert(typeof(value) == "number", "Expected type number for DPI scale but got " .. typeof(value))
-
-    DPIScale = value / 100
-    Library.MinSize = (Library.IsMobile and Vector2.new(550, 200) or Vector2.new(550, 300)) * DPIScale
-end
+function Library:SetDPIScale(value: number) 
+    assert(type(value) == "number", "Expected type number for DPI scale but got " .. typeof(value))
+    
+    DPIScale = value / 100;
+    Library.MinSize = (if Library.IsMobile then Vector2.new(550, 200) else Vector2.new(550, 300)) * DPIScale;
+end;
 
 function Library:SafeCallback(Func, ...)
     if not (Func and typeof(Func) == "function") then
@@ -210,79 +204,61 @@ function Library:SafeCallback(Func, ...)
         if Success then
             return Response
         end
-
-        -- Safely build a one-line traceback (guard if debug.traceback() unexpectedly fails)
-        local ok, Traceback = pcall(function() return debug.traceback() end)
-        Traceback = ok and Traceback or "traceback unavailable"
-        Traceback = Traceback:gsub("\n", " ")
+    
+        local Traceback = debug.traceback():gsub("\n", " ")
         local _, i = Traceback:find(":%d+ ")
-        if i then
-            Traceback = Traceback:sub(i + 1):gsub(" :", ":")
+        Traceback = Traceback:sub(i + 1):gsub(" :", ":")
+    
+        task.defer(error, Response .. " - " .. Traceback)
+        if Library.NotifyOnError then
+            Library:Notify(Response)
         end
+    end;
 
-        -- Defer the error so we don't halt the current thread immediately
-        task.defer(error, (tostring(Response) or "Error") .. " - " .. Traceback)
-
-        if Library.NotifyOnError and typeof(Library.NotifyOnError) == "function" then
-            pcall(Library.NotifyOnError, Library, Response)
-        elseif Library.NotifyOnError and Library.Notify then
-            pcall(function() Library:Notify(Response) end)
-        end
-    end
-
-    task.spawn(run, Func, ...)
-end
+    task.spawn(run, Func, ...);
+end;
 
 function Library:AttemptSave()
-    if (not Library.SaveManager) then return end
-    Library.SaveManager:Save()
-end
+    if (not Library.SaveManager) then return end;
+    Library.SaveManager:Save();
+end;
 
 function Library:Create(Class, Properties)
-    local _Instance = Class
+    local _Instance = Class;
 
     if typeof(Class) == "string" then
-        _Instance = Instance.new(Class)
-    end
-
-    Properties = Properties or {}
+        _Instance = Instance.new(Class);
+    end;
 
     for Property, Value in next, Properties do
         if (Property == "Size" or Property == "Position") then
-            if typeof(ApplyDPIScale) == "function" then
-                Value = ApplyDPIScale(Value)
-            end
+            Value = ApplyDPIScale(Value);
         elseif Property == "TextSize" then
-            if typeof(ApplyTextScale) == "function" then
-                Value = ApplyTextScale(Value)
-            end
-        end
+            Value = ApplyTextScale(Value);
+        end;
 
         local success, err = pcall(function()
-            _Instance[Property] = Value
-        end)
+            _Instance[Property] = Value;
+        end);
 
         if (not success) then
-            warn(err)
-        end
-    end
+            warn(err);
+        end;
+    end;
 
-    return _Instance
-end
+    return _Instance;
+end;
 
 function Library:ApplyTextStroke(Inst)
-    -- ensure the instance supports TextStrokeTransparency
-    if pcall(function() Inst.TextStrokeTransparency = 1 end) then
-        Inst.TextStrokeTransparency = 1
-    end
+    Inst.TextStrokeTransparency = 1;
 
     return Library:Create('UIStroke', {
         Color = Color3.new(0, 0, 0);
         Thickness = 1;
         LineJoinMode = Enum.LineJoinMode.Miter;
         Parent = Inst;
-    })
-end
+    });
+end;
 
 function Library:CreateLabel(Properties, IsHud)
     local _Instance = Library:Create('TextLabel', {
@@ -291,36 +267,35 @@ function Library:CreateLabel(Properties, IsHud)
         TextColor3 = Library.FontColor;
         TextSize = 16;
         TextStrokeTransparency = 0;
-        -- Parent is intentionally omitted here so caller can set parent in Properties
-    })
+    });
 
-    Library:ApplyTextStroke(_Instance)
+    Library:ApplyTextStroke(_Instance);
 
     Library:AddToRegistry(_Instance, {
         TextColor3 = 'FontColor';
-    }, IsHud)
+    }, IsHud);
 
-    return Library:Create(_Instance, Properties)
-end
+    return Library:Create(_Instance, Properties);
+end;
 
 function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
-    Instance.Active = true
+    Instance.Active = true;
 
     if Library.IsMobile == false then
         Instance.InputBegan:Connect(function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 then
                 if IsMainWindow == true and Library.CantDragForced == true then
-                    return
-                end
-
+                    return;
+                end;
+           
                 local ObjPos = Vector2.new(
                     Mouse.X - Instance.AbsolutePosition.X,
                     Mouse.Y - Instance.AbsolutePosition.Y
-                )
+                );
 
                 if ObjPos.Y > (Cutoff or 40) then
-                    return
-                end
+                    return;
+                end;
 
                 while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
                     Instance.Position = UDim2.new(
@@ -328,91 +303,78 @@ function Library:MakeDraggable(Instance, Cutoff, IsMainWindow)
                         Mouse.X - ObjPos.X + (Instance.Size.X.Offset * Instance.AnchorPoint.X),
                         0,
                         Mouse.Y - ObjPos.Y + (Instance.Size.Y.Offset * Instance.AnchorPoint.Y)
-                    )
+                    );
 
-                    RenderStepped:Wait()
-                end
-            end
-        end)
+                    RenderStepped:Wait();
+                end;
+            end;
+        end);
     else
-        local Dragging, DraggingInput, DraggingStart, StartPosition
+        local Dragging, DraggingInput, DraggingStart, StartPosition;
 
         InputService.TouchStarted:Connect(function(Input)
             if IsMainWindow == true and Library.CantDragForced == true then
                 Dragging = false
-                return
+                return;
             end
 
-            -- Determine if dragging is allowed for this frame
-            local canDragForThis = true
-            if IsMainWindow == true then
-                canDragForThis = (Library.CanDrag == true) and (Library.Window and Library.Window.Holder and Library.Window.Holder.Visible == true)
-            end
+            if not Dragging and Library:MouseIsOverFrame(Instance, Input) and (IsMainWindow == true and (Library.CanDrag == true and Library.Window.Holder.Visible == true) or true) then
+                DraggingInput = Input;
+                DraggingStart = Input.Position;
+                StartPosition = Instance.Position;
 
-            if not Dragging and Library:MouseIsOverFrame(Instance, Input) and canDragForThis then
-                DraggingInput = Input
-                DraggingStart = Input.Position
-                StartPosition = Instance.Position
-
-                local OffsetPos = Input.Position - DraggingStart
+                local OffsetPos = Input.Position - DraggingStart;
                 if OffsetPos.Y > (Cutoff or 40) then
-                    Dragging = false
-                    return
-                end
+                    Dragging = false;
+                    return;
+                end;
 
-                Dragging = true
-            end
-        end)
-
+                Dragging = true;
+            end;
+        end);
         InputService.TouchMoved:Connect(function(Input)
             if IsMainWindow == true and Library.CantDragForced == true then
-                Dragging = false
-                return
+                Dragging = false;
+                return;
             end
 
-            local canDragForThis = true
-            if IsMainWindow == true then
-                canDragForThis = (Library.CanDrag == true) and (Library.Window and Library.Window.Holder and Library.Window.Holder.Visible == true)
-            end
-
-            if Input == DraggingInput and Dragging and canDragForThis then
-                local OffsetPos = Input.Position - DraggingStart
+            if Input == DraggingInput and Dragging and (IsMainWindow == true and (Library.CanDrag == true and Library.Window.Holder.Visible == true) or true) then
+                local OffsetPos = Input.Position - DraggingStart;
 
                 Instance.Position = UDim2.new(
                     StartPosition.X.Scale,
                     StartPosition.X.Offset + OffsetPos.X,
                     StartPosition.Y.Scale,
                     StartPosition.Y.Offset + OffsetPos.Y
-                )
-            end
-        end)
-
+                );
+            end;
+        end);
         InputService.TouchEnded:Connect(function(Input)
-            if Input == DraggingInput then
-                Dragging = false
-            end
-        end)
-    end
-end
+            if Input == DraggingInput then 
+                Dragging = false;
+            end;
+        end);
+    end;
+end;
 
 function Library:MakeDraggableUsingParent(Instance, Parent, Cutoff, IsMainWindow)
-    Instance.Active = true
+    Instance.Active = true;
 
     if Library.IsMobile == false then
         Instance.InputBegan:Connect(function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseButton1 then
                 if IsMainWindow == true and Library.CantDragForced == true then
-                    return
-                end
-
+                    return;
+                end;
+  
                 local ObjPos = Vector2.new(
                     Mouse.X - Parent.AbsolutePosition.X,
                     Mouse.Y - Parent.AbsolutePosition.Y
-                )
+                );
 
                 if ObjPos.Y > (Cutoff or 40) then
-                    return
-                end
+                    return;
+                end;
 
                 while InputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) do
                     Parent.Position = UDim2.new(
@@ -420,26 +382,26 @@ function Library:MakeDraggableUsingParent(Instance, Parent, Cutoff, IsMainWindow
                         Mouse.X - ObjPos.X + (Parent.Size.X.Offset * Parent.AnchorPoint.X),
                         0,
                         Mouse.Y - ObjPos.Y + (Parent.Size.Y.Offset * Parent.AnchorPoint.Y)
-                    )
+                    );
 
-                    RenderStepped:Wait()
-                end
-            end
-        end)
-    else
+                    RenderStepped:Wait();
+                end;
+            end;
+        end);
+    else  
         Library:MakeDraggable(Parent, Cutoff, IsMainWindow)
-    end
-end
+    end;
+end;
 
 function Library:MakeResizable(Instance, MinSize)
     if Library.IsMobile then
-        return
-    end
+        return;
+    end;
 
-    Instance.Active = true
-
-    local ResizerImage_Size = 25 * DPIScale
-    local ResizerImage_HoverTransparency = 0.5
+    Instance.Active = true;
+    
+    local ResizerImage_Size = 25 * DPIScale;
+    local ResizerImage_HoverTransparency = 0.5;
 
     local Resizer = Library:Create('Frame', {
         SizeConstraint = Enum.SizeConstraint.RelativeXX;
@@ -451,8 +413,8 @@ function Library:MakeResizable(Instance, MinSize)
         Visible = true;
         ClipsDescendants = true;
         ZIndex = 1;
-        Parent = Instance;
-    })
+        Parent = Instance;--Library.ScreenGui;
+    });
 
     local ResizerImage = Library:Create('ImageButton', {
         BackgroundColor3 = Library.AccentColor;
@@ -462,110 +424,117 @@ function Library:MakeResizable(Instance, MinSize)
         Position = UDim2.new(1, -30, 1, -30);
         ZIndex = 2;
         Parent = Resizer;
-    })
+    });
 
     local ResizerImageUICorner = Library:Create('UICorner', {
         CornerRadius = UDim.new(0.5, 0);
         Parent = ResizerImage;
-    })
+    });
 
-    Library:AddToRegistry(ResizerImage, { BackgroundColor3 = 'AccentColor'; })
+    Library:AddToRegistry(ResizerImage, { BackgroundColor3 = 'AccentColor'; });
 
-    Resizer.Size = UDim2.fromOffset(ResizerImage_Size, ResizerImage_Size)
-    Resizer.Position = UDim2.new(1, -ResizerImage_Size, 1, -ResizerImage_Size)
-    MinSize = MinSize or Library.MinSize
+    Resizer.Size = UDim2.fromOffset(ResizerImage_Size, ResizerImage_Size);
+    Resizer.Position = UDim2.new(1, -ResizerImage_Size, 1, -ResizerImage_Size);
+    MinSize = MinSize or Library.MinSize;
 
-    local OffsetPos
-    Resizer.Parent = Instance
+    local OffsetPos;
+    Resizer.Parent = Instance;
 
     local function FinishResize(Transparency)
-        ResizerImage.Position = UDim2.new()
-        ResizerImage.Size = UDim2.new(2, 0, 2, 0)
-        ResizerImage.Parent = Resizer
-        ResizerImage.BackgroundTransparency = Transparency
-        ResizerImageUICorner.Parent = ResizerImage
-        OffsetPos = nil
-    end
+        ResizerImage.Position = UDim2.new();
+        ResizerImage.Size = UDim2.new(2, 0, 2, 0);
+        ResizerImage.Parent = Resizer;
+        ResizerImage.BackgroundTransparency = Transparency;
+        ResizerImageUICorner.Parent = ResizerImage;
+        OffsetPos = nil;
+    end;
 
     ResizerImage.MouseButton1Down:Connect(function()
         if not OffsetPos then
-            OffsetPos = Vector2.new(Mouse.X - (Instance.AbsolutePosition.X + Instance.AbsoluteSize.X), Mouse.Y - (Instance.AbsolutePosition.Y + Instance.AbsoluteSize.Y))
+            OffsetPos = Vector2.new(Mouse.X - (Instance.AbsolutePosition.X + Instance.AbsoluteSize.X), Mouse.Y - (Instance.AbsolutePosition.Y + Instance.AbsoluteSize.Y));
 
             ResizerImage.BackgroundTransparency = 1
-            ResizerImage.Size = UDim2.fromOffset(Library.ScreenGui.AbsoluteSize.X, Library.ScreenGui.AbsoluteSize.Y)
-            ResizerImage.Position = UDim2.new()
-            ResizerImageUICorner.Parent = nil
-            ResizerImage.Parent = Library.ScreenGui
-        end
-    end)
+            ResizerImage.Size = UDim2.fromOffset(Library.ScreenGui.AbsoluteSize.X, Library.ScreenGui.AbsoluteSize.Y);
+            ResizerImage.Position = UDim2.new();
+            ResizerImageUICorner.Parent = nil;
+            ResizerImage.Parent = Library.ScreenGui;
+        end;
+    end);
 
     ResizerImage.MouseMoved:Connect(function()
-        if OffsetPos then
-            local MousePos = Vector2.new(Mouse.X - OffsetPos.X, Mouse.Y - OffsetPos.Y)
-            local FinalSize = Vector2.new(math.clamp(MousePos.X - Instance.AbsolutePosition.X, MinSize.X, math.huge), math.clamp(MousePos.Y - Instance.AbsolutePosition.Y, MinSize.Y, math.huge))
-            Instance.Size = UDim2.fromOffset(FinalSize.X, FinalSize.Y)
-        end
-    end)
+        if OffsetPos then		
+            local MousePos = Vector2.new(Mouse.X - OffsetPos.X, Mouse.Y - OffsetPos.Y);
+            local FinalSize = Vector2.new(math.clamp(MousePos.X - Instance.AbsolutePosition.X, MinSize.X, math.huge), math.clamp(MousePos.Y - Instance.AbsolutePosition.Y, MinSize.Y, math.huge));
+            Instance.Size = UDim2.fromOffset(FinalSize.X, FinalSize.Y);
+        end;
+    end);
 
     ResizerImage.MouseEnter:Connect(function()
-        FinishResize(ResizerImage_HoverTransparency)
-    end)
+        FinishResize(ResizerImage_HoverTransparency);	
+    end);
 
     ResizerImage.MouseLeave:Connect(function()
-        FinishResize(1)
-    end)
+        FinishResize(1);
+    end);
 
     ResizerImage.MouseButton1Up:Connect(function()
-        FinishResize(ResizerImage_HoverTransparency)
-    end)
-end
+        FinishResize(ResizerImage_HoverTransparency);
+    end);
+end;
 
 function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
-    InfoStr = typeof(InfoStr) == "string" and InfoStr or nil
-    DisabledInfoStr = typeof(DisabledInfoStr) == "string" and DisabledInfoStr or nil
+    InfoStr = typeof(InfoStr) == "string" and InfoStr or nil;
+    DisabledInfoStr = typeof(DisabledInfoStr) == "string" and DisabledInfoStr or nil;
 
     local Tooltip = Library:Create('Frame', {
         BackgroundColor3 = Library.MainColor;
         BorderColor3 = Library.OutlineColor;
+
         ZIndex = 100;
         Parent = Library.ScreenGui;
+
         Visible = false;
-    })
+    });
 
     local Label = Library:CreateLabel({
         Position = UDim2.fromOffset(3, 1);
+        
         TextSize = 14;
         Text = InfoStr;
         TextColor3 = Library.FontColor;
         TextXAlignment = Enum.TextXAlignment.Left;
         ZIndex = Tooltip.ZIndex + 1;
+
         Parent = Tooltip;
-    })
+    });
 
     Library:AddToRegistry(Tooltip, {
         BackgroundColor3 = 'MainColor';
         BorderColor3 = 'OutlineColor';
-    })
+    });
 
     Library:AddToRegistry(Label, {
         TextColor3 = 'FontColor',
-    })
+    });
 
     local TooltipTable = {
         Tooltip = Tooltip;
         Disabled = false;
+
         Signals = {};
     }
     local IsHovering = false
 
     local function UpdateText(Text)
         if Text == nil then return end
-        local X, Y = Library:GetTextBounds(Text, Library.Font, 14 * DPIScale)
-        Label.Text = Text
-        Tooltip.Size = UDim2.fromOffset(X + 5, Y + 4)
-        Label.Size = UDim2.fromOffset(X, Y)
+
+        local X, Y = Library:GetTextBounds(Text, Library.Font, 14 * DPIScale);
+
+        Label.Text = Text;
+        Tooltip.Size = UDim2.fromOffset(X + 5, Y + 4);
+        Label.Size = UDim2.fromOffset(X, Y);
     end
-    UpdateText(InfoStr)
+    UpdateText(InfoStr);
 
     table.insert(TooltipTable.Signals, HoverInstance.MouseEnter:Connect(function()
         if Library:MouseIsOverOpenedFrame() then
@@ -579,14 +548,14 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
                 return
             end
 
-            if Label.Text ~= InfoStr then UpdateText(InfoStr) end
+            if Label.Text ~= InfoStr then UpdateText(InfoStr); end
         else
             if DisabledInfoStr == nil or DisabledInfoStr == "" then
                 Tooltip.Visible = false
                 return
             end
 
-            if Label.Text ~= DisabledInfoStr then UpdateText(DisabledInfoStr) end
+            if Label.Text ~= DisabledInfoStr then UpdateText(DisabledInfoStr); end
         end
 
         IsHovering = true
@@ -596,6 +565,7 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
 
         while IsHovering do
             if TooltipTable.Disabled == true and DisabledInfoStr == nil then break end
+
             RunService.Heartbeat:Wait()
             Tooltip.Position = UDim2.fromOffset(Mouse.X + 15, Mouse.Y + 12)
         end
@@ -608,7 +578,7 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
         IsHovering = false
         Tooltip.Visible = false
     end))
-
+    
     if LibraryMainOuterFrame then
         table.insert(TooltipTable.Signals, LibraryMainOuterFrame:GetPropertyChangedSignal("Visible"):Connect(function()
             if LibraryMainOuterFrame.Visible == false then
@@ -619,15 +589,11 @@ function Library:AddToolTip(InfoStr, DisabledInfoStr, HoverInstance)
     end
 
     function TooltipTable:Destroy()
-        Tooltip:Destroy()
+        Tooltip:Destroy();
 
         for Idx = #TooltipTable.Signals, 1, -1 do
-            local Connection = table.remove(TooltipTable.Signals, Idx)
-            if Connection and typeof(Connection.disconnect) == "function" then
-                pcall(function() Connection:Disconnect() end)
-            else
-                pcall(function() Connection:Disconnect() end)
-            end
+            local Connection = table.remove(TooltipTable.Signals, Idx);
+            Connection:Disconnect();
         end
     end
 
@@ -636,27 +602,27 @@ end
 
 function Library:OnHighlight(HighlightInstance, Instance, Properties, PropertiesDefault, condition)
     local function undoHighlight()
-        local Reg = Library.RegistryMap[Instance]
+        local Reg = Library.RegistryMap[Instance];
 
         for Property, ColorIdx in next, PropertiesDefault do
-            Instance[Property] = Library[ColorIdx] or ColorIdx
+            Instance[Property] = Library[ColorIdx] or ColorIdx;
 
             if Reg and Reg.Properties[Property] then
-                Reg.Properties[Property] = ColorIdx
-            end
-        end
+                Reg.Properties[Property] = ColorIdx;
+            end;
+        end;
     end
     local function doHighlight()
         if condition and not condition() then undoHighlight() return end
-        local Reg = Library.RegistryMap[Instance]
+        local Reg = Library.RegistryMap[Instance];
 
         for Property, ColorIdx in next, Properties do
-            Instance[Property] = Library[ColorIdx] or ColorIdx
+            Instance[Property] = Library[ColorIdx] or ColorIdx;
 
             if Reg and Reg.Properties[Property] then
-                Reg.Properties[Property] = ColorIdx
-            end
-        end
+                Reg.Properties[Property] = ColorIdx;
+            end;
+        end;
     end
 
     HighlightInstance.MouseEnter:Connect(function()
@@ -668,119 +634,121 @@ function Library:OnHighlight(HighlightInstance, Instance, Properties, Properties
     HighlightInstance.MouseLeave:Connect(function()
         undoHighlight()
     end)
-end
+end;
 
 function Library:MouseIsOverOpenedFrame(Input)
-    local Pos = Mouse
-    if Library.IsMobile and Input then
-        Pos = Input.Position
-    end
+    local Pos = Mouse;
+    if Library.IsMobile and Input then 
+        Pos = Input.Position;
+    end;
 
     for Frame, _ in next, Library.OpenedFrames do
-        local AbsPos, AbsSize = Frame.AbsolutePosition, Frame.AbsoluteSize
+        local AbsPos, AbsSize = Frame.AbsolutePosition, Frame.AbsoluteSize;
 
         if Pos.X >= AbsPos.X and Pos.X <= AbsPos.X + AbsSize.X
             and Pos.Y >= AbsPos.Y and Pos.Y <= AbsPos.Y + AbsSize.Y then
 
-            return true
-        end
-    end
-end
+            return true;
+        end;
+    end;
+end;
 
 function Library:MouseIsOverFrame(Frame, Input)
-    local Pos = Mouse
-    if Library.IsMobile and Input then
-        Pos = Input.Position
-    end
-    local AbsPos, AbsSize = Frame.AbsolutePosition, Frame.AbsoluteSize
+    local Pos = Mouse;
+    if Library.IsMobile and Input then 
+        Pos = Input.Position;
+    end;
+    local AbsPos, AbsSize = Frame.AbsolutePosition, Frame.AbsoluteSize;
 
     if Pos.X >= AbsPos.X and Pos.X <= AbsPos.X + AbsSize.X
         and Pos.Y >= AbsPos.Y and Pos.Y <= AbsPos.Y + AbsSize.Y then
 
-        return true
-    end
-end
+        return true;
+    end;
+end;
 
 function Library:UpdateDependencyBoxes()
     for _, Depbox in next, Library.DependencyBoxes do
-        Depbox:Update()
-    end
-end
+        Depbox:Update();
+    end;
+end;
 
 function Library:MapValue(Value, MinA, MaxA, MinB, MaxB)
-    -- Guard against division by zero
-    if MaxA == MinA then
-        return MinB
-    end
-    local t = (Value - MinA) / (MaxA - MinA)
-    return (1 - t) * MinB + t * MaxB
-end
+    return (1 - ((Value - MinA) / (MaxA - MinA))) * MinB + ((Value - MinA) / (MaxA - MinA)) * MaxB;
+end;
 
 function Library:GetTextBounds(Text, Font, Size, Resolution)
     -- Ignores rich text formatting --
-    local plain = tostring(Text):gsub("<%/?[%w:]+[^>]*>", "")
-    local Bounds = TextService:GetTextSize(plain, Size, Font, Resolution or Vector2.new(1920, 1080))
+    local Bounds = TextService:GetTextSize(Text:gsub("<%/?[%w:]+[^>]*>", ""), Size, Font, Resolution or Vector2.new(1920, 1080))
     return Bounds.X, Bounds.Y
-end
+end;
 
 function Library:GetDarkerColor(Color)
-    local H, S, V = Color3.toHSV(Color)
-    return Color3.fromHSV(H, S, V / 1.5)
-end
-Library.AccentColorDark = Library:GetDarkerColor(Library.AccentColor)
+    local H, S, V = Color3.toHSV(Color);
+    return Color3.fromHSV(H, S, V / 1.5);
+end;
+Library.AccentColorDark = Library:GetDarkerColor(Library.AccentColor);
 
 function Library:AddToRegistry(Instance, Properties, IsHud)
-    local Idx = #Library.Registry + 1
+    local Idx = #Library.Registry + 1;
     local Data = {
         Instance = Instance;
         Properties = Properties;
         Idx = Idx;
-    }
+    };
 
-    table.insert(Library.Registry, Data)
-    Library.RegistryMap[Instance] = Data
+    table.insert(Library.Registry, Data);
+    Library.RegistryMap[Instance] = Data;
 
     if IsHud then
-        table.insert(Library.HudRegistry, Data)
-    end
-end
+        table.insert(Library.HudRegistry, Data);
+    end;
+end;
 
 function Library:RemoveFromRegistry(Instance)
-    local Data = Library.RegistryMap[Instance]
+    local Data = Library.RegistryMap[Instance];
 
     if Data then
         for Idx = #Library.Registry, 1, -1 do
             if Library.Registry[Idx] == Data then
-                table.remove(Library.Registry, Idx)
-            end
-        end
+                table.remove(Library.Registry, Idx);
+            end;
+        end;
 
         for Idx = #Library.HudRegistry, 1, -1 do
             if Library.HudRegistry[Idx] == Data then
-                table.remove(Library.HudRegistry, Idx)
-            end
-        end
+                table.remove(Library.HudRegistry, Idx);
+            end;
+        end;
 
-        Library.RegistryMap[Instance] = nil
-    end
-end
+        Library.RegistryMap[Instance] = nil;
+    end;
+end;
 
 function Library:UpdateColorsUsingRegistry()
+    -- TODO: Could have an 'active' list of objects
+    -- where the active list only contains Visible objects.
+
+    -- IMPL: Could setup .Changed events on the AddToRegistry function
+    -- that listens for the 'Visible' propert being changed.
+    -- Visible: true => Add to active list, and call UpdateColors function
+    -- Visible: false => Remove from active list.
+
+    -- The above would be especially efficient for a rainbow menu color or live color-changing.
+
     for Idx, Object in next, Library.Registry do
         for Property, ColorIdx in next, Object.Properties do
             if typeof(ColorIdx) == "string" then
-                Object.Instance[Property] = Library[ColorIdx]
+                Object.Instance[Property] = Library[ColorIdx];
             elseif typeof(ColorIdx) == 'function' then
-                local ok, val = pcall(ColorIdx)
-                if ok then Object.Instance[Property] = val end
-            else
-                Object.Instance[Property] = ColorIdx
+                Object.Instance[Property] = ColorIdx()
             end
-        end
-    end
-end
+        end;
+    end;
+end;
 
 function Library:GiveSignal(Signal)
+    -- Only used for signals not attached to library instances, as those should be cleaned up on object destruction by Roblox
     table.insert(Library.Signals, Signal)
 end
 
@@ -788,69 +756,65 @@ function Library:Unload()
     -- Unload all of the signals
     for Idx = #Library.Signals, 1, -1 do
         local Connection = table.remove(Library.Signals, Idx)
-        pcall(function() Connection:Disconnect() end)
+        Connection:Disconnect()
     end
 
-    -- Call unload callbacks
+    -- Call our unload callback, maybe to undo some hooks etc
     for _, UnloadCallback in pairs(Library.UnloadSignals) do
         Library:SafeCallback(UnloadCallback)
     end
 
     getgenv().Linoria = nil
-    if Library.ScreenGui and Library.ScreenGui.Destroy then
-        pcall(function() Library.ScreenGui:Destroy() end)
-    end
+    ScreenGui:Destroy()
 end
 
 function Library:OnUnload(Callback)
     table.insert(Library.UnloadSignals, Callback)
 end
 
--- ensure we reference Library.ScreenGui (not a bare ScreenGui global)
-if Library and Library.ScreenGui then
-    Library:GiveSignal(Library.ScreenGui.DescendantRemoving:Connect(function(Instance)
-        if Library.RegistryMap[Instance] then
-            Library:RemoveFromRegistry(Instance)
-        end
-    end))
-end
+Library:GiveSignal(ScreenGui.DescendantRemoving:Connect(function(Instance)
+    if Library.RegistryMap[Instance] then
+        Library:RemoveFromRegistry(Instance);
+    end;
+end))
 
-local function Trim(Text)
+local function Trim(Text: string)
     if Text == nil then
-        return ""
+        return "";
     end
 
     return tostring(Text):match("^%s*(.-)%s*$")
 end
 
--- BaseAddons AddColorPicker fix (partial; depends on remainder of your original code)
-local BaseAddons = {}
+local BaseAddons = {};
 
 do
-    local BaseAddonsFuncs = {}
+    local BaseAddonsFuncs = {};
 
     function BaseAddonsFuncs:AddColorPicker(Idx, Info)
         local ParentObj = self
-        local ToggleLabel = self.TextLabel
+        local ToggleLabel = self.TextLabel;
+        --local Container = self.Container;
 
-        assert(Info.Default, 'AddColorPicker: Missing default value.')
+        assert(Info.Default, 'AddColorPicker: Missing default value.');
 
         local ColorPicker = {
             Value = Info.Default;
             Transparency = Info.Transparency or 0;
             Type = 'ColorPicker';
-            Title = typeof(Info.Title) == "string" and Info.Title or 'Color picker';
-            Callback = Info.Callback or function() end;
-        }
+            Title = typeof(Info.Title) == "string" and Info.Title or 'Color picker',
+            Callback = Info.Callback or function(Color) end;
+        };
 
         function ColorPicker:SetHSVFromRGB(Color)
-            local H, S, V = Color3.toHSV(Color)
-            ColorPicker.Hue = H
-            ColorPicker.Sat = S
-            ColorPicker.Vib = V
-        end
+            local H, S, V = Color:ToHSV();
 
-        ColorPicker:SetHSVFromRGB(ColorPicker.Value)
+            ColorPicker.Hue = H;
+            ColorPicker.Sat = S;
+            ColorPicker.Vib = V;
+        end;
+
+        ColorPicker:SetHSVFromRGB(ColorPicker.Value);
 
         local DisplayFrame = Library:Create('Frame', {
             BackgroundColor3 = ColorPicker.Value;
@@ -859,8 +823,9 @@ do
             Size = UDim2.new(0, 28, 0, 18);
             ZIndex = 6;
             Parent = ToggleLabel;
-        })
+        });
 
+        -- Transparency image taken from https://github.com/matas3535/SplixPrivateDrawingLibrary/blob/main/Library.lua cus i'm lazy
         local CheckerFrame = Library:Create('ImageLabel', {
             BorderSizePixel = 0;
             Size = UDim2.new(0, 27, 0, 13);
@@ -868,15 +833,12 @@ do
             Image = 'http://www.roblox.com/asset/?id=12977615774';
             Visible = not not Info.Transparency;
             Parent = DisplayFrame;
-        })
+        });
 
-        -- remainder of colorpicker implementation continues...
-    end
-
-    -- attach BaseAddonsFuncs to BaseAddons if needed (depends on the rest of your system)
-    BaseAddons = BaseAddonsFuncs
-end
-
+        -- 1/16/23
+        -- Rewrote this to be placed inside the Library ScreenGui
+        -- There was some issue which caused RelativeOffset to be way off
+        -- Thus the color picker would never show
 
         local PickerFrameOuter = Library:Create('Frame', {
             Name = 'Color';
